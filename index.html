@@ -3,513 +3,575 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RH5 Digital Planner - 88/8 Infinite</title>
+    <title>Infinity Saver 88/8 Calculator</title>
     
     <!-- React & ReactDOM -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     
-    <!-- Babel for JSX -->
+    <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Recharts (Charting Library) -->
-    <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
-
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- html2pdf.js for real PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700;800&display=swap');
         body { font-family: 'Sarabun', sans-serif; }
-        .glass-effect {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
+        
+        /* Custom Scrollbar for table */
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
         }
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f5f9; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Toggle Switch */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #002d63;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #002d63;
+        }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800">
+<body class="bg-slate-50 text-slate-900">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
-        const { 
-            AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
-        } = Recharts;
+        const { useState, useEffect, useMemo, useRef } = React;
 
-        // --- ICONS (SVG Components for portability) ---
-        const Icon = ({ name, size = 20, className = "" }) => {
-            const icons = {
-                shield: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />,
-                chevronRight: <path d="m9 18 6-6-6-6" />,
-                lock: <rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />,
-                trendingUp: <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" />,
-                calendar: <rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" />,
-                user: <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />,
-                smartphone: <rect width="14" height="20" x="5" y="2" rx="2" ry="2" /><path d="M12 18h.01" />,
-                checkCircle: <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />,
-                refresh: <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" />,
-                home: <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" />,
-                gift: <polyline points="20 12 20 22 4 22 4 12" /><rect width="20" height="5" x="2" y="7" /><line x1="12" x2="12" y1="22" y2="7" /><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" /><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+        // --- INLINE ICONS (To prevent White Screen Crash) ---
+        const IconBase = ({ children, size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {children}
+            </svg>
+        );
+
+        const Shield = (p) => <IconBase {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></IconBase>;
+        const ChevronLeft = (p) => <IconBase {...p}><path d="m15 18-6-6 6-6"/></IconBase>;
+        const Calculator = (p) => <IconBase {...p}><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></IconBase>;
+        const FileText = (p) => <IconBase {...p}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></IconBase>;
+        const ArrowRight = (p) => <IconBase {...p}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></IconBase>;
+        const TrendingUp = (p) => <IconBase {...p}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></IconBase>;
+        const PieChart = (p) => <IconBase {...p}><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></IconBase>;
+        const Download = (p) => <IconBase {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></IconBase>;
+        const Delete = (p) => <IconBase {...p}><path d="M20 5H9l-7 7 7 7h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Z"/><line x1="18" x2="12" y1="9" y2="15"/><line x1="12" x2="18" y1="9" y2="15"/></IconBase>;
+        const Home = (p) => <IconBase {...p}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></IconBase>;
+        const RefreshCcw = (p) => <IconBase {...p}><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></IconBase>;
+        const InfinityIcon = (p) => <IconBase {...p}><path d="M12 12c-2-2.67-4-4-6-4a4 4 0 1 0 0 8c2 0 4-1.33 6-4Zm0 0c2 2.67 4 4 6 4a4 4 0 1 0 0-8c-2 0-4 1.33-6 4Z"/></IconBase>;
+
+        // --- PREMIUM RATES DATA ---
+        const PREMIUM_RATES = {
+            male: [
+                { age: 1, rate: 108000 }, { age: 15, rate: 126000 }, { age: 20, rate: 137800 }, 
+                { age: 30, rate: 154200 }, { age: 40, rate: 170600 }, { age: 50, rate: 187000 }, 
+                { age: 60, rate: 208200 }, { age: 65, rate: 218800 }
+            ],
+            female: [
+                { age: 1, rate: 104000 }, { age: 15, rate: 120500 }, { age: 20, rate: 131600 }, 
+                { age: 30, rate: 147800 }, { age: 40, rate: 164000 }, { age: 50, rate: 180200 }, 
+                { age: 60, rate: 199400 }, { age: 65, rate: 209000 }
+            ]
+        };
+
+        const getRateForAge = (age, gender) => {
+            const dataset = PREMIUM_RATES[gender === 'm' ? 'male' : 'female'];
+            const sorted = [...dataset].sort((a, b) => a.age - b.age);
+            if (age <= sorted[0].age) return sorted[0].rate;
+            if (age >= sorted[sorted.length - 1].age) return sorted[sorted.length - 1].rate;
+            for (let i = 0; i < sorted.length - 1; i++) {
+                const s = sorted[i]; const e = sorted[i+1];
+                if (age >= s.age && age <= e.age) {
+                    return s.rate + (age - s.age) * (e.rate - s.rate) / (e.age - s.age);
+                }
+            }
+            return sorted[sorted.length - 1].rate;
+        };
+
+        // --- IRR CALCULATION ---
+        const calculateIRR = (flows) => {
+            let guess = 0.02;
+            for (let i = 0; i < 100; i++) {
+                let npv = 0; let dNpv = 0;
+                for (let t = 0; t < flows.length; t++) {
+                    const d = Math.pow(1 + guess, t);
+                    npv += flows[t] / d;
+                    dNpv -= (t * flows[t]) / (d * (1 + guess));
+                }
+                if (Math.abs(dNpv) < 1e-12) break;
+                let next = guess - npv / dNpv;
+                if (Math.abs(next - guess) < 1e-7) return next;
+                guess = next;
+            }
+            return null;
+        };
+
+        const App = () => {
+            const [authorized, setAuthorized] = useState(false);
+            const [step, setStep] = useState('calc'); 
+            const [inputs, setInputs] = useState({ age: 35, gender: 'm', mode: 'sa', amount: 1000000 });
+            const [result, setResult] = useState(null);
+            const [loading, setLoading] = useState(false);
+
+            const handleCalculate = () => {
+                setLoading(true);
+                setTimeout(() => {
+                    const ratePer1M = getRateForAge(inputs.age, inputs.gender);
+                    let sa = 0; let annPrem = 0;
+                    if (inputs.mode === 'sa') {
+                        sa = inputs.amount;
+                        annPrem = (sa / 1000000) * ratePer1M;
+                    } else {
+                        annPrem = inputs.amount;
+                        sa = Math.floor((annPrem / ratePer1M) * 1000000 / 1000) * 1000;
+                        annPrem = (sa / 1000000) * ratePer1M;
+                    }
+
+                    const duration = 88 - inputs.age;
+                    const flows = [];
+                    const irrStream = [-annPrem];
+                    let cumPrem = 0;
+                    let cumCash = 0;
+
+                    for (let t = 1; t <= duration; t++) {
+                        const year = t;
+                        const curAge = inputs.age + t;
+                        const p = t <= 8 ? annPrem : 0;
+                        const c = curAge < 88 ? (sa * 0.088) : 0;
+                        const m = curAge === 88 ? (sa * 8.88) : 0;
+                        
+                        if (t <= 8) cumPrem += annPrem;
+                        cumCash += c;
+
+                        // Step-up Death Benefit Logic
+                        let dbPercent = 0;
+                        if(year === 1) dbPercent = 1.08;
+                        else if(year === 2) dbPercent = 2.08;
+                        else if(year === 3) dbPercent = 3.08;
+                        else if(year === 4) dbPercent = 4.08;
+                        else if(year === 5) dbPercent = 5.08;
+                        else if(year === 6) dbPercent = 6.08;
+                        else if(year === 7) dbPercent = 7.08;
+                        else dbPercent = 8.08;
+                        
+                        const deathBenefit = sa * dbPercent;
+
+                        flows.push({ year, age: curAge, premium: p, cashback: c, maturity: m, deathBenefit, totalYearly: c + m });
+                        
+                        let net = (c + m);
+                        if (t <= 8) net -= annPrem;
+                        irrStream[t] = net;
+                    }
+
+                    setResult({
+                        sa, annPrem, cumPrem, cumCash,
+                        maturity: sa * 8.88,
+                        totalBenefit: cumCash + (sa * 8.88),
+                        netProfit: (cumCash + (sa * 8.88)) - cumPrem,
+                        irr: calculateIRR(irrStream) * 100,
+                        flows,
+                        isCampaign: annPrem >= 400000
+                    });
+                    setStep('result');
+                    setLoading(false);
+                }, 500);
+            };
+
+            const resetAll = () => {
+                setStep('calc');
+                setResult(null);
+            };
+
+            if (!authorized) return <Numpad onAuth={() => setAuthorized(true)} />;
+
+            return (
+                <div className="min-h-screen bg-slate-50 text-slate-900">
+                    {step === 'calc' && <InputView inputs={inputs} setInputs={setInputs} onCalc={handleCalculate} loading={loading} />}
+                    {step === 'result' && <Dashboard result={result} inputs={inputs} onBack={resetAll} onReport={() => setStep('report')} />}
+                    {step === 'report' && <ReportView result={result} inputs={inputs} onBack={() => setStep('result')} />}
+                </div>
+            );
+        };
+
+        // --- NUMPAD VIEW ---
+        const Numpad = ({ onAuth }) => {
+            const [pin, setPin] = useState('');
+            const handlePress = (n) => {
+                if (pin.length < 4) {
+                    const next = pin + n;
+                    setPin(next);
+                    if (next === '2026') onAuth();
+                    else if (next.length === 4) setTimeout(() => setPin(''), 500);
+                }
             };
             return (
-                <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    width={size} 
-                    height={size} 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    className={className}
-                >
-                    {icons[name] || <circle cx="12" cy="12" r="10"/>}
-                </svg>
+                <div className="fixed inset-0 bg-[#002d63] flex flex-col items-center justify-center p-6">
+                    <div className="mb-12 text-center">
+                        <div className="w-20 h-20 bg-white/10 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-white/20 backdrop-blur-md">
+                            <Shield className="text-white" size={40} />
+                        </div>
+                        <h1 className="text-2xl font-bold text-white uppercase tracking-widest">Infinity Saver</h1>
+                        <p className="text-blue-300/60 text-xs mt-2 font-medium tracking-widest uppercase">Internal Secure Access</p>
+                    </div>
+                    <div className="flex gap-4 mb-16">
+                        {[0, 1, 2, 3].map(i => (
+                            <div key={i} className={`w-3.5 h-3.5 rounded-full border-2 border-white/30 transition-all ${pin.length > i ? 'bg-white border-white scale-125 shadow-lg shadow-white/50' : ''}`} />
+                        ))}
+                    </div>
+                    <div className="grid grid-cols-3 gap-6">
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => (
+                            <button key={n} onClick={() => handlePress(n)} className="w-16 h-16 rounded-full bg-white/5 border border-white/10 text-white text-2xl font-light hover:bg-white/20 active:scale-90 transition-all">{n}</button>
+                        ))}
+                        <div />
+                        <button onClick={() => handlePress(0)} className="w-16 h-16 rounded-full bg-white/5 border border-white/10 text-white text-2xl font-light hover:bg-white/20 active:scale-90 transition-all">0</button>
+                        <button onClick={() => setPin(pin.slice(0, -1))} className="w-16 h-16 flex items-center justify-center text-white/40"><Delete /></button>
+                    </div>
+                </div>
             );
         };
 
-        // --- DATA & LOGIC ---
+        // --- INPUT VIEW ---
+        const InputView = ({ inputs, setInputs, onCalc, loading }) => (
+            <div className="max-w-md mx-auto min-h-screen bg-white shadow-2xl flex flex-col">
+                <div className="p-10 bg-[#002d63] text-white rounded-b-[3rem] shadow-xl">
+                    <div className="flex items-center gap-3 mb-4">
+                        <Calculator className="text-orange-400" />
+                        <h2 className="text-xl font-black tracking-tight">Digital 88/8 Calculator</h2>
+                    </div>
+                    <p className="text-blue-100/60 text-sm leading-relaxed">เครื่องมือคำนวณแผนประกันชีวิตเพื่อการออมทรัพย์แบบอินฟินิตี้</p>
+                </div>
+                <div className="p-8 space-y-8 flex-1">
+                    <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-2xl border border-slate-200">
+                        <button onClick={() => setInputs({...inputs, gender: 'm'})} className={`py-3.5 rounded-xl text-sm font-bold transition-all ${inputs.gender==='m'?'bg-white text-[#002d63] shadow-md':'text-slate-400'}`}>ชาย</button>
+                        <button onClick={() => setInputs({...inputs, gender: 'f'})} className={`py-3.5 rounded-xl text-sm font-bold transition-all ${inputs.gender==='f'?'bg-white text-[#f68b1f] shadow-md':'text-slate-400'}`}>หญิง</button>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">อายุผู้เอาประกัน (ปี)</label>
+                        <input type="number" value={inputs.age} onChange={e => setInputs({...inputs, age: parseInt(e.target.value)||''})} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-4 text-2xl font-black text-[#002d63] focus:border-orange-400 outline-none transition-all" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <button onClick={() => setInputs({...inputs, mode: 'sa'})} className={`p-4 rounded-2xl border-2 text-left transition-all ${inputs.mode==='sa'?'border-[#002d63] bg-blue-50':'border-slate-100'}`}>
+                            <div className="text-xs font-bold text-slate-400 mb-1">ระบุจาก</div>
+                            <div className="font-black text-[#002d63]">ทุนประกัน</div>
+                        </button>
+                        <button onClick={() => setInputs({...inputs, mode: 'premium'})} className={`p-4 rounded-2xl border-2 text-left transition-all ${inputs.mode==='premium'?'border-[#002d63] bg-blue-50':'border-slate-100'}`}>
+                            <div className="text-xs font-bold text-slate-400 mb-1">ระบุจาก</div>
+                            <div className="font-black text-[#002d63]">งบประมาณเบี้ย</div>
+                        </button>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">{inputs.mode==='sa'?'ทุนประกันภัย':'เบี้ยประกันต่อปี'}</label>
+                        <div className="relative">
+                            <input type="number" value={inputs.amount} onChange={e => setInputs({...inputs, amount: parseInt(e.target.value)||''})} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-5 text-3xl font-black text-[#002d63] focus:border-orange-400 outline-none transition-all" />
+                            <div className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 font-bold">฿</div>
+                        </div>
+                    </div>
+                    <button onClick={onCalc} disabled={loading} className="w-full bg-gradient-to-r from-[#002d63] to-[#0052b4] text-white py-5 rounded-2xl font-black text-lg shadow-xl shadow-blue-200 active:scale-95 transition-all flex items-center justify-center gap-3">
+                        {loading ? <RefreshCcw className="animate-spin" /> : <>คำนวณผลประโยชน์ <ArrowRight size={20}/></>}
+                    </button>
+                </div>
+            </div>
+        );
 
-        const RATE_TABLE_888 = {
-            male: { 20: 0.1378, 30: 0.1450, 40: 0.1580, 50: 0.1882, 60: 0.2250 }, 
-            female: { 20: 0.1316, 30: 0.1380, 40: 0.1490, 50: 0.1802, 60: 0.2150 }
-        };
+        // --- DASHBOARD VIEW ---
+        const Dashboard = ({ result, inputs, onBack, onReport }) => {
+            const [showAllRows, setShowAllRows] = useState(false);
+            const f = (v) => v?.toLocaleString(undefined, { maximumFractionDigits: 0 }) || '0';
+            
+            const cashbackYearly = result.sa * 0.088;
+            const cashbackDuration = 87 - inputs.age;
 
-        const getPremiumRate888 = (age, gender) => {
-            const table = gender === 'male' ? RATE_TABLE_888.male : RATE_TABLE_888.female;
-            const ages = Object.keys(table).map(Number);
-            const closestAge = ages.reduce((prev, curr) => 
-                Math.abs(curr - age) < Math.abs(prev - age) ? curr : prev
+            return (
+                <div className="max-w-4xl mx-auto pb-32 p-4 md:p-8">
+                    <div className="flex items-center justify-between mb-8">
+                        <button onClick={onBack} className="p-3 bg-white rounded-2xl shadow-sm text-slate-400 hover:text-[#002d63]"><ChevronLeft /></button>
+                        <h2 className="font-black text-[#002d63] uppercase tracking-tight">สรุปแผนการออมเงิน 88/8</h2>
+                        <div className="w-12" />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <Metric label="เบี้ยประกัน/ปี" val={f(result.annPrem)} sub="ชำระ 8 ปี" color="text-[#002d63]" />
+                        <Metric label="ทุนประกันภัย" val={f(result.sa)} sub="Infinity Saver 88/8" color="text-slate-600" />
+                        <Metric label="IRR เฉลี่ย" val={result.irr ? result.irr.toFixed(2)+'%' : '-'} sub="ต่อปี (ตลอดสัญญา)" color="text-green-600" />
+                    </div>
+
+                    <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 mb-8">
+                        <div className="flex items-center gap-3 mb-10 border-b border-slate-50 pb-6">
+                            <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center text-orange-500"><PieChart /></div>
+                            <div>
+                                <h3 className="font-black text-[#002d63]">การวิเคราะห์กระแสเงินสด</h3>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Financial Projection Analysis</p>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                            <div className="space-y-6">
+                                <Row label="เงินคืนรายปี (8.8% x ทุน)" val={f(result.sa * 0.088)} />
+                                <Row label="เงินคืนสะสมระหว่างสัญญา" val={f(result.cumCash)} />
+                                <Row label="เงินครบสัญญา (888% x ทุน)" val={f(result.maturity)} />
+                                <div className="pt-4 border-t border-slate-100 flex justify-between items-end">
+                                    <span className="text-xs font-bold text-slate-400 uppercase">รวมรับตลอดสัญญา</span>
+                                    <span className="text-3xl font-black text-[#002d63]">{f(result.totalBenefit)} <small className="text-xs font-normal">฿</small></span>
+                                </div>
+                                <div className="bg-green-50 p-6 rounded-3xl border border-green-100">
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-bold text-green-700">กำไรสุทธิคงเหลือ</span>
+                                        <span className="text-2xl font-black text-green-700">+{f(result.netProfit)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* MARKETING TEXT */}
+                            <div className="bg-blue-50 rounded-3xl p-6 flex flex-col items-center justify-center text-center border border-blue-100">
+                                <TrendingUp size={48} className="text-[#002d63] mb-4 opacity-20" />
+                                <h4 className="font-black text-[#002d63] text-lg mb-2">จุดเด่นของแบบประกัน</h4>
+                                <p className="text-slate-600 font-medium px-4 leading-relaxed">
+                                    “สร้างกระแสเงินสดอย่างต่อเนื่อง ปีละ <span className="text-orange-500 font-bold text-xl">{f(cashbackYearly)}</span> บาท นาน <span className="text-[#002d63] font-bold text-xl">{cashbackDuration}</span> ปี”
+                                </p>
+                                <p className="mt-4 text-[10px] text-slate-400 font-bold uppercase tracking-widest">Cash Flow Generator</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden shadow-sm">
+                        <div className="p-6 bg-slate-50/50 border-b border-slate-100 flex justify-between items-center">
+                            <div className="font-black text-[#002d63] text-sm uppercase tracking-widest">
+                                ตารางแสดงความคุ้มครองชีวิตแบบขั้นบันได
+                            </div>
+                            
+                            <div className="flex items-center gap-3">
+                                <span className={`text-xs font-bold ${!showAllRows ? 'text-[#002d63]' : 'text-slate-400'}`}>ย่อ</span>
+                                <div 
+                                    className="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in"
+                                    onClick={() => setShowAllRows(!showAllRows)}
+                                >
+                                    <input type="checkbox" name="toggle" id="toggle" checked={showAllRows} readOnly className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-300"/>
+                                    <label htmlFor="toggle" className="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer"></label>
+                                </div>
+                                <span className={`text-xs font-bold ${showAllRows ? 'text-[#002d63]' : 'text-slate-400'}`}>ทั้งหมด</span>
+                            </div>
+                        </div>
+                        
+                        <div className="overflow-x-auto max-h-[600px] custom-scrollbar">
+                            <table className="w-full text-sm">
+                                <thead className="text-[10px] uppercase font-bold text-slate-400 bg-slate-50/30 sticky top-0 z-10 backdrop-blur-sm">
+                                    <tr>
+                                        <th className="p-5 text-left bg-slate-50">ปีที่</th>
+                                        <th className="p-5 text-center bg-slate-50">อายุ</th>
+                                        <th className="p-5 text-right bg-slate-50">เบี้ยประกัน</th>
+                                        <th className="p-5 text-right text-[#002d63] bg-slate-50">ความคุ้มครองชีวิต</th>
+                                        <th className="p-5 text-right text-green-600 bg-slate-50">เงินคืนสิ้นปี</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50">
+                                    {result.flows
+                                        .filter((_, i) => showAllRows ? true : (i < 8 || (i+1)%10 === 0 || i === result.flows.length-1))
+                                        .map((r, i) => (
+                                        <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                            <td className="p-5 font-black text-slate-300">{r.year}</td>
+                                            <td className="p-5 text-center font-bold">{r.age}</td>
+                                            <td className="p-5 text-right font-bold text-red-400">{r.premium > 0 ? f(r.premium) : '-'}</td>
+                                            <td className="p-5 text-right font-black text-[#002d63]">{f(r.deathBenefit)}</td>
+                                            <td className="p-5 text-right font-black text-green-600">{f(r.totalYearly)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div className="fixed bottom-0 inset-x-0 p-6 bg-white/90 backdrop-blur-xl border-t border-slate-100 flex gap-4 max-w-4xl mx-auto z-50 shadow-[0_-20px_40px_rgba(0,0,0,0.05)]">
+                        <button onClick={onBack} className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-3xl font-black text-sm flex items-center justify-center gap-2 hover:bg-slate-200 transition-all"><Home size={18}/> Home / คำนวณใหม่</button>
+                        <button onClick={onReport} className="flex-1 py-5 bg-[#002d63] text-white rounded-3xl font-black text-sm flex items-center justify-center gap-2 shadow-xl shadow-blue-200 hover:bg-blue-800 transition-all"><FileText size={18}/> พิมพ์รายงาน PDF</button>
+                    </div>
+                </div>
             );
-            return table[closestAge];
         };
 
-        const calculate888 = (age, gender, inputAmount, mode) => {
-            const rate = getPremiumRate888(age, gender);
-            let sumInsured, annualPremium;
-
-            // Dual Calculation Logic
-            if (mode === 'premium') {
-                annualPremium = inputAmount;
-                sumInsured = Math.floor(annualPremium / rate);
-            } else {
-                sumInsured = inputAmount;
-                annualPremium = Math.round(sumInsured * rate);
-            }
-
-            const totalPremium = annualPremium * 8; 
-            const cashFlows = [];
-            let totalCashback = 0;
-            const cashbackRate = 0.08; 
-            const annualCashback = sumInsured * cashbackRate;
-
-            // Logic: Calculate until age 88
-            const yearsUntil88 = 88 - age;
+        // --- REPORT VIEW ---
+        const ReportView = ({ result, inputs, onBack }) => {
+            const f = (v) => v?.toLocaleString(undefined, { maximumFractionDigits: 0 }) || '0';
+            const now = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
             
-            for (let i = 1; i <= yearsUntil88; i++) {
-                const currentAge = age + i;
-                const isPaying = i <= 8;
+            const handleSavePDF = () => {
+                const element = document.getElementById('report-content');
+                const btn = document.getElementById('save-btn');
                 
-                // Final Maturity Benefit at age 88 (Simulated as 888% max total benefit cap logic or lump sum)
-                // For this product "88/8", usually implies simple cashback yearly. 
-                // Let's assume at age 88, there might be a maturity benefit or just the last payment.
-                // Standard 88/8 often gives returns yearly. Let's keep it simple: returns until 88.
-                
-                const yearlyNet = annualCashback - (isPaying ? annualPremium : 0);
-                
-                cashFlows.push({
-                    year: i,
-                    age: currentAge,
-                    premium: isPaying ? annualPremium : 0,
-                    benefit: annualCashback,
-                    net: yearlyNet,
-                    accumulatedBenefit: (i * annualCashback)
-                });
-                totalCashback += annualCashback;
-            }
+                const opt = {
+                    margin: 0,
+                    filename: `InfinitySaver88_8_Age${inputs.age}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
 
-            // Campaign Logic: iPhone 17 Pro Max
-            // Condition: Annual Premium >= 500,000 THB (Example Threshold)
-            const checkCampaign = annualPremium >= 500000;
-
-            return {
-                productName: "Digital 88/8 Infinite",
-                annualPremium,
-                sumInsured,
-                totalPremium,
-                annualCashback,
-                cashFlows,
-                isCampaignEligible: checkCampaign,
-                features: [
-                    "ชำระเบี้ยเพียง 8 ปี คุ้มครองยาวนานถึงอายุ 88 ปี",
-                    `รับเงินคืนปีละ ${formatMoney(annualCashback)} (8% ของทุน)`,
-                    "รวมผลประโยชน์ตลอดสัญญา 888%",
-                    "ลดหย่อนภาษีได้สูงสุด 100,000 บาท"
-                ]
-            };
-        };
-
-        const formatMoney = (amount) => {
-            return new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 }).format(amount);
-        };
-
-        // --- MAIN APP COMPONENT ---
-
-        function App() {
-            const [view, setView] = useState('lock'); // lock, input, loading, report
-            const [passcode, setPasscode] = useState('');
-            const [error, setError] = useState('');
-            const [showFullTable, setShowFullTable] = useState(false);
-            
-            const [formData, setFormData] = useState({
-                product: '888',
-                mode: 'sumInsured', // 'sumInsured' or 'premium'
-                gender: 'male',
-                age: 35,
-                amount: 1000000 // Default Sum Insured
-            });
-
-            const [result, setResult] = useState(null);
-
-            // --- Handlers ---
-
-            const handlePadClick = (num) => {
-                if (passcode.length < 4) {
-                    const newPass = passcode + num;
-                    setPasscode(newPass);
-                    if (newPass.length === 4) {
-                        if (newPass === '2026') {
-                            setTimeout(() => setView('input'), 300);
-                        } else {
-                            setError('รหัสผ่านไม่ถูกต้อง');
-                            setTimeout(() => {
-                                setPasscode('');
-                                setError('');
-                            }, 1000);
-                        }
-                    }
+                if (window.html2pdf) {
+                    const oldText = btn.innerHTML;
+                    btn.innerHTML = 'Generating...';
+                    window.html2pdf().set(opt).from(element).save().then(() => {
+                        btn.innerHTML = oldText;
+                    });
+                } else {
+                    alert("PDF Library is loading. Please try again in a moment.");
                 }
             };
 
-            const handleCalculate = () => {
-                setView('loading');
-                setTimeout(() => {
-                    const calcResult = calculate888(formData.age, formData.gender, formData.amount, formData.mode);
-                    setResult(calcResult);
-                    setView('report');
-                }, 1500);
-            };
-
-            const handleReset = () => {
-                setResult(null);
-                setPasscode('');
-                setView('input'); // Or 'lock' if you want full logout
-            };
-
-            // --- Views ---
-
-            if (view === 'lock') {
-                return (
-                    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-                             <div className="absolute top-[-10%] right-[-10%] w-96 h-96 bg-blue-500 rounded-full blur-3xl"></div>
-                             <div className="absolute bottom-[-10%] left-[-10%] w-96 h-96 bg-orange-500 rounded-full blur-3xl"></div>
-                        </div>
-                        <div className="z-10 w-full max-w-sm flex flex-col items-center">
-                            <div className="mb-8 relative">
-                                <Icon name="shield" size={64} className="text-white mb-2" />
-                                <div className="absolute -bottom-1 -right-1 bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">RH5</div>
-                            </div>
-                            <h1 className="text-2xl font-bold text-white mb-2">Digital Planner</h1>
-                            <p className="text-slate-400 text-sm mb-8">กรุณาระบุรหัสผ่านเพื่อเข้าใช้งาน</p>
-                            <div className="flex gap-4 mb-8">
-                                {[...Array(4)].map((_, i) => (
-                                    <div key={i} className={`w-4 h-4 rounded-full border-2 transition-all ${i < passcode.length ? 'bg-blue-500 border-blue-500' : 'border-slate-600'}`}></div>
-                                ))}
-                            </div>
-                            {error && <p className="text-red-400 text-sm mb-4 animate-pulse">{error}</p>}
-                            <div className="grid grid-cols-3 gap-6">
-                                {[1, 2, 3, 4, 5, 6, 7, 8, 9, '', 0].map((num, idx) => (
-                                    num === '' ? <div key={idx}></div> :
-                                    <button 
-                                        key={num}
-                                        onClick={() => handlePadClick(num.toString())}
-                                        className="w-16 h-16 rounded-full bg-slate-800 text-white text-xl font-medium hover:bg-slate-700 active:bg-blue-600 transition-colors shadow-lg border border-slate-700"
-                                    >
-                                        {num}
-                                    </button>
-                                ))}
-                            </div>
-                            <p className="mt-12 text-slate-600 text-xs">สำหรับเจ้าหน้าที่พื้นที่ RH5 เท่านั้น (Pass: 2026)</p>
-                        </div>
+            return (
+                <div className="min-h-screen bg-slate-800 flex flex-col items-center overflow-auto">
+                    <div className="fixed top-0 inset-x-0 h-16 bg-slate-900 text-white flex items-center justify-between px-6 z-50 no-print" data-html2canvas-ignore="true">
+                        <button onClick={onBack} className="text-slate-400 hover:text-white flex items-center gap-2 text-sm font-bold"><ChevronLeft size={18}/> ย้อนกลับ</button>
+                        <div className="text-[10px] font-black uppercase tracking-widest opacity-40">Infinity Saver 88/8 Report Viewer</div>
+                        <button id="save-btn" onClick={handleSavePDF} className="bg-[#002d63] px-6 py-2 rounded-xl text-xs font-black shadow-lg flex items-center gap-2 hover:bg-blue-800 transition-all">
+                            <Download size={16}/> DOWNLOAD PDF
+                        </button>
                     </div>
-                );
-            }
 
-            if (view === 'loading') {
-                return (
-                    <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6">
-                        <div className="w-20 h-20 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin mb-6"></div>
-                        <h2 className="text-xl font-bold text-slate-800 animate-pulse">กำลังประมวลผล...</h2>
-                        <p className="text-slate-500 text-sm mt-2">ตรวจสอบเงื่อนไขแคมเปญและคำนวณเบี้ย</p>
-                    </div>
-                );
-            }
-
-            if (view === 'input') {
-                return (
-                    <div className="min-h-screen bg-slate-50 pb-20">
-                        <div className="bg-white px-6 pt-12 pb-6 rounded-b-[2rem] shadow-sm mb-6">
-                            <div className="flex justify-between items-center mb-4">
-                                <div>
-                                    <h1 className="text-2xl font-bold text-slate-800">สร้างแผนประกัน</h1>
-                                    <p className="text-slate-500 text-sm">88/8 Infinite Wealth</p>
+                    <div id="report-content" className="bg-white w-full max-w-[210mm] min-h-[297mm] my-24 p-[15mm] md:p-[20mm] text-slate-900 relative shadow-2xl">
+                        
+                        <div className="flex justify-between items-start border-b-4 border-[#002d63] pb-8 mb-10">
+                            <div>
+                                <h1 className="text-4xl font-black text-[#002d63] tracking-tight mb-2 uppercase">Infinity Saver 88/8</h1>
+                                <p className="text-slate-400 text-sm font-bold">โครงการเพื่อการวางแผนทางการเงินและคุ้มครองชีวิตแบบอินฟินิตี้</p>
+                            </div>
+                            <div className="text-right flex flex-col items-end">
+                                <div className="text-[#002d63]">
+                                    <InfinityIcon size={48} strokeWidth={2.5} />
                                 </div>
-                                <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 font-bold border border-blue-100">
-                                    <Icon name="user" size={20} />
+                                <div className="w-24 h-1 bg-orange-500 mt-2" />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-10 mb-10">
+                            <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Customer Details</h4>
+                                <div className="text-xl font-black text-[#002d63]">คุณ (เพศ{inputs.gender==='m'?'ชาย':'หญิง'})</div>
+                                <div className="text-sm font-bold text-slate-600 mt-1">อายุผู้เอาประกัน: {inputs.age} ปี</div>
+                                <div className="text-sm font-bold text-slate-600">ระยะเวลาคุ้มครอง: ถึงอายุ 88 ปี</div>
+                                <div className="text-sm font-bold text-slate-600">ระยะเวลาชำระเบี้ย: 8 ปี</div>
+                            </div>
+                            <div className="p-6 text-right flex flex-col justify-center">
+                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Generated On</div>
+                                <div className="text-sm font-bold text-slate-800">{now}</div>
+                                <div className="mt-4 text-[10px] font-black px-4 py-1.5 bg-blue-50 text-[#002d63] rounded-full inline-block ml-auto border border-blue-100">QUOTATION DRAFT #RH5</div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-6 mb-10">
+                            <ReportMetric label="ทุนประกันภัย" val={f(result.sa)} />
+                            <ReportMetric label="เบี้ยประกัน/ปี" val={f(result.annPrem)} highlight />
+                            <ReportMetric label="เงินคืนรายปี (8.8%)" val={f(result.sa * 0.088)} />
+                        </div>
+
+                        <div className="bg-slate-50 p-8 rounded-[2rem] mb-10 border border-slate-100">
+                            <h3 className="font-black text-[#002d63] text-lg mb-6 uppercase tracking-wide">สรุปผลประโยชน์รวมตลอดสัญญา</h3>
+                            <div className="space-y-4">
+                                <ReportRow label="รวมรับเงินคืนรายปีตลอดสัญญา" val={f(result.cumCash)} />
+                                <ReportRow label="เงินครบกำหนดสัญญา (888% ของทุน)" val={f(result.maturity)} />
+                                <div className="h-px bg-slate-200 my-2" />
+                                <div className="flex justify-between items-end">
+                                    <span className="font-black text-slate-800">ผลประโยชน์รับรวมตลอดโครงการ</span>
+                                    <span className="text-3xl font-black text-[#002d63]">{f(result.totalBenefit)} <small className="text-xs font-normal">บาท</small></span>
+                                </div>
+                                <div className="flex justify-between items-center text-red-500 font-bold text-sm">
+                                    <span>หัก เบี้ยประกันภัยรวม (8 ปี)</span>
+                                    <span>- {f(result.cumPrem)} บาท</span>
+                                </div>
+                                <div className="bg-white p-5 rounded-2xl border border-slate-100 flex justify-between items-center shadow-sm">
+                                    <span className="font-black text-slate-900">กำไรสุทธิคงเหลือ (Net Gain)</span>
+                                    <span className="text-2xl font-black text-green-600">+{f(result.netProfit)} บาท</span>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="px-6 space-y-6 max-w-lg mx-auto">
-                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">
-                                {/* Gender */}
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-3">เพศ</label>
-                                    <div className="flex gap-4">
-                                        <button onClick={() => setFormData({...formData, gender: 'male'})} className={`flex-1 py-3 rounded-xl border-2 flex items-center justify-center gap-2 transition-all ${formData.gender === 'male' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-100 text-slate-400'}`}>
-                                            <span className="font-medium">ชาย</span>
-                                        </button>
-                                        <button onClick={() => setFormData({...formData, gender: 'female'})} className={`flex-1 py-3 rounded-xl border-2 flex items-center justify-center gap-2 transition-all ${formData.gender === 'female' ? 'border-pink-500 bg-pink-50 text-pink-700' : 'border-slate-100 text-slate-400'}`}>
-                                            <span className="font-medium">หญิง</span>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Age */}
-                                <div>
-                                    <div className="flex justify-between mb-2">
-                                        <label className="text-sm font-medium text-slate-700">อายุผู้เอาประกัน</label>
-                                        <span className="text-blue-600 font-bold text-lg">{formData.age} ปี</span>
-                                    </div>
-                                    <input type="range" min="1" max="70" value={formData.age} onChange={(e) => setFormData({...formData, age: parseInt(e.target.value)})} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-                                </div>
-
-                                {/* Mode Toggle */}
-                                <div className="p-1 bg-slate-100 rounded-lg flex relative">
-                                    <button 
-                                        onClick={() => setFormData({...formData, mode: 'sumInsured', amount: 1000000})} 
-                                        className={`flex-1 py-2 text-xs font-bold rounded-md z-10 transition-colors ${formData.mode === 'sumInsured' ? 'text-blue-700 bg-white shadow-sm' : 'text-slate-500'}`}
-                                    >
-                                        ระบุทุนประกัน
-                                    </button>
-                                    <button 
-                                        onClick={() => setFormData({...formData, mode: 'premium', amount: 50000})} 
-                                        className={`flex-1 py-2 text-xs font-bold rounded-md z-10 transition-colors ${formData.mode === 'premium' ? 'text-blue-700 bg-white shadow-sm' : 'text-slate-500'}`}
-                                    >
-                                        ระบุงบเบี้ยประกัน
-                                    </button>
-                                </div>
-
-                                {/* Amount Input */}
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                                        {formData.mode === 'sumInsured' ? 'ทุนประกันที่ต้องการ (บาท)' : 'งบเบี้ยประกันต่อปี (บาท)'}
-                                    </label>
-                                    <div className="relative">
-                                        <input 
-                                            type="number"
-                                            value={formData.amount}
-                                            onChange={(e) => setFormData({...formData, amount: parseInt(e.target.value) || 0})}
-                                            className="w-full p-4 pl-4 pr-12 bg-slate-50 border border-slate-200 rounded-xl text-xl font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        />
-                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">THB</div>
-                                    </div>
-                                    <p className="text-xs text-slate-400 mt-2 text-right">
-                                        {formData.mode === 'sumInsured' ? 'ระบบจะคำนวณเบี้ยประกันให้โดยอัตโนมัติ' : 'ระบบจะคำนวณทุนประกันสูงสุดให้โดยอัตโนมัติ'}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <button onClick={handleCalculate} className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2">
-                                คำนวณผลประโยชน์ <Icon name="chevronRight" />
-                            </button>
-                        </div>
-                    </div>
-                );
-            }
-
-            if (view === 'report' && result) {
-                // Table Data Slicing
-                const displayRows = showFullTable ? result.cashFlows : result.cashFlows.slice(0, 20);
-
-                return (
-                    <div className="min-h-screen bg-slate-50 pb-24">
-                        {/* Header */}
-                        <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 py-3 flex justify-between items-center">
-                            <button onClick={() => setView('input')} className="p-2 rounded-full hover:bg-slate-100 text-slate-600">
-                                <Icon name="refresh" size={20} />
-                            </button>
-                            <span className="font-bold text-slate-800 text-sm">สรุปแผนประกัน</span>
-                            <div className="w-8"></div>
+                        <div className="mb-8">
+                            <h4 className="font-black text-[#002d63] text-sm mb-4 border-l-4 border-orange-500 pl-4 uppercase tracking-widest">ตารางแสดงความคุ้มครองชีวิตขั้นบันได</h4>
+                            
+                            <table className="w-full text-[10px] border-collapse">
+                                <thead>
+                                    <tr className="bg-[#002d63] text-white">
+                                        <th className="p-2 text-left">สิ้นปีที่</th>
+                                        <th className="p-2 text-center">อายุ</th>
+                                        <th className="p-2 text-right">เบี้ยประกัน</th>
+                                        <th className="p-2 text-right">ความคุ้มครอง</th>
+                                        <th className="p-2 text-right">เงินคืน/ครบสัญญา</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 border-x border-slate-50">
+                                    {result.flows.filter((_, i) => i < 8 || (i+1)%5 === 0 || i === result.flows.length-1).map((r, i) => (
+                                        <tr key={i}>
+                                            <td className="p-2 font-black text-slate-400">{r.year}</td>
+                                            <td className="p-2 text-center font-bold text-slate-600">{r.age}</td>
+                                            <td className="p-2 text-right font-bold text-red-500">{r.premium > 0 ? f(r.premium) : '-'}</td>
+                                            <td className="p-2 text-right font-black text-[#002d63]">{f(r.deathBenefit)}</td>
+                                            <td className="p-2 text-right font-black text-green-600">{f(r.totalYearly)}</td>
+                                        </tr>
+                                    ))}
+                                    <tr className="bg-blue-50/50 font-black">
+                                        <td colSpan="4" className="p-3 text-[#002d63]">ครบกำหนดสัญญา (888% ของทุนประกัน)</td>
+                                        <td className="p-3 text-right text-[#002d63]">{f(result.maturity)}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
 
-                        <div className="max-w-3xl mx-auto">
-                            {/* Campaign Banner */}
-                            {result.isCampaignEligible && (
-                                <div className="bg-gradient-to-r from-yellow-700 via-yellow-500 to-yellow-600 text-white p-4 m-4 rounded-xl shadow-lg relative overflow-hidden animate-pulse-slow">
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-20 rounded-full -mr-10 -mt-10 blur-xl"></div>
-                                    <div className="flex items-center gap-4 relative z-10">
-                                        <div className="bg-white/20 p-3 rounded-full">
-                                            <Icon name="gift" size={24} className="text-white" />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-bold text-lg leading-tight">สิทธิ์พิเศษสำหรับคุณ!</h3>
-                                            <p className="text-yellow-100 text-xs mt-1">ยอดเบี้ยประกันถึงเกณฑ์ รับสิทธิ์จอง iPhone 17 Pro Max ทันที*</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Main Card */}
-                            <div className="bg-gradient-to-br from-blue-900 to-slate-900 text-white p-6 rounded-b-3xl shadow-xl mx-4 mt-4 mb-6 relative overflow-hidden">
-                                <div className="absolute top-0 right-0 w-48 h-48 bg-blue-500 opacity-20 rounded-full -mr-10 -mt-10 blur-3xl"></div>
-                                <div className="relative z-10">
-                                    <div className="flex items-center gap-2 mb-2 opacity-80">
-                                        <Icon name="shield" size={16} />
-                                        <span className="text-xs font-medium tracking-wider uppercase">88/8 Infinite Wealth</span>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4 mt-4">
-                                        <div className="bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/10">
-                                            <p className="text-xs text-blue-200 mb-1">เบี้ยประกันต่อปี</p>
-                                            <p className="text-xl font-bold text-white">{formatMoney(result.annualPremium)}</p>
-                                        </div>
-                                        <div className="bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/10">
-                                            <p className="text-xs text-blue-200 mb-1">ทุนประกันเริ่มต้น</p>
-                                            <p className="text-xl font-bold text-white">{formatMoney(result.sumInsured)}</p>
-                                        </div>
-                                    </div>
-                                    <div className="mt-4 flex gap-2 text-xs text-blue-200 bg-black/20 p-2 rounded-lg justify-center">
-                                        <span>ชำระเบี้ย: 8 ปี</span>
-                                        <span>•</span>
-                                        <span>คุ้มครองถึงอายุ: 88 ปี</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Chart Section */}
-                            <div className="px-4 mb-6">
-                                <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-                                    <Icon name="trendingUp" className="text-blue-600" size={16} />
-                                    ผลตอบแทนสะสม (20 ปีแรก)
-                                </h3>
-                                <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 h-64">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <AreaChart data={result.cashFlows.slice(0, 20)}>
-                                            <defs>
-                                                <linearGradient id="colorBenefit" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
-                                                    <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
-                                                </linearGradient>
-                                            </defs>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                                            <XAxis dataKey="age" label={{ value: 'อายุ', position: 'insideBottomRight', offset: -5 }} axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                                            <YAxis hide />
-                                            <Tooltip 
-                                                contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
-                                                formatter={(value) => formatMoney(value)}
-                                                labelFormatter={(value) => `อายุ ${value} ปี`}
-                                            />
-                                            <Area type="monotone" dataKey="accumulatedBenefit" stroke="#10B981" fillOpacity={1} fill="url(#colorBenefit)" name="เงินคืนสะสม" />
-                                        </AreaChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-
-                            {/* Summary Table */}
-                            <div className="px-4 mb-8">
-                                <div className="flex justify-between items-center mb-3">
-                                    <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                                        <Icon name="calendar" className="text-orange-600" size={16} />
-                                        ตารางผลประโยชน์
-                                    </h3>
-                                    <button 
-                                        onClick={() => setShowFullTable(!showFullTable)}
-                                        className="text-xs text-blue-600 font-bold bg-blue-50 px-2 py-1 rounded-md"
-                                    >
-                                        {showFullTable ? 'ย่อข้อมูล (20 ปี)' : 'ดูทั้งหมด (ถึงอายุ 88)'}
-                                    </button>
-                                </div>
-                                
-                                <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-                                    <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
-                                        <table className="w-full text-sm text-left relative">
-                                            <thead className="bg-slate-50 text-slate-500 font-medium sticky top-0 shadow-sm z-10">
-                                                <tr>
-                                                    <th className="px-3 py-3 text-center w-16">อายุ</th>
-                                                    <th className="px-3 py-3 text-right">เบี้ยฯ</th>
-                                                    <th className="px-3 py-3 text-right text-green-600">เงินคืน</th>
-                                                    <th className="px-3 py-3 text-right text-slate-400 text-xs">สุทธิ</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100">
-                                                {displayRows.map((row) => (
-                                                    <tr key={row.year} className="hover:bg-slate-50 transition-colors">
-                                                        <td className="px-3 py-2 text-center font-medium text-slate-600">{row.age}</td>
-                                                        <td className="px-3 py-2 text-right text-slate-600">
-                                                            {row.premium > 0 ? formatMoney(row.premium) : <span className="text-slate-300">-</span>}
-                                                        </td>
-                                                        <td className="px-3 py-2 text-right font-medium text-green-600">+{formatMoney(row.benefit)}</td>
-                                                        <td className={`px-3 py-2 text-right text-xs ${row.net > 0 ? 'text-green-500' : 'text-red-400'}`}>
-                                                            {formatMoney(row.net)}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    {!showFullTable && (
-                                        <div className="p-3 text-center text-xs text-slate-400 border-t border-slate-100 bg-slate-50/50">
-                                            แสดงข้อมูล 20 ปีแรก กดปุ่มด้านบนเพื่อดูจนครบสัญญา
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Call to Action - Home Button */}
-                            <div className="px-4 pb-8">
-                                <div className="bg-orange-50 rounded-xl p-4 border border-orange-100 mb-6">
-                                    <p className="text-xs text-orange-800/80 leading-relaxed text-center">
-                                        *เงื่อนไขแคมเปญเป็นไปตามที่บริษัทกำหนด <br/>เอกสารนี้สำหรับการนำเสนอเบื้องต้นเท่านั้น
-                                    </p>
-                                </div>
-
-                                <button 
-                                    onClick={handleReset}
-                                    className="w-full bg-white border-2 border-slate-200 text-slate-700 py-4 rounded-xl font-bold shadow-sm hover:bg-slate-50 flex items-center justify-center gap-2 transition-colors"
-                                >
-                                    <Icon name="home" size={20} />
-                                    กลับหน้าหลัก / คำนวณใหม่
-                                </button>
-                                
-                                <p className="text-center text-[10px] text-slate-400 mt-6">
-                                    RH5 Digital Tool v2.1 (Campaign Updated)
+                        <div className="mt-auto pt-6 border-t border-slate-100">
+                            <div className="bg-yellow-50/50 p-4 rounded-2xl border border-yellow-100 mb-4">
+                                <h5 className="text-[9px] font-black text-yellow-700 uppercase mb-1">คำเตือน (Disclaimer)</h5>
+                                <p className="text-[9px] text-slate-500 leading-relaxed text-justify">
+                                    เอกสารนี้จัดทำขึ้นเพื่อประกอบการแนะนำเบื้องต้นเท่านั้น ไม่ใช่ใบเสนอขายอย่างเป็นทางการ | ผู้ขอเอาประกันภัยควรทำความเข้าใจในรายละเอียดความคุ้มครองและเงื่อนไขก่อนตัดสินใจทำประกันภัยทุกครั้ง | ผลประโยชน์และความคุ้มครองเป็นไปตามข้อกำหนดในกรมธรรม์
                                 </p>
                             </div>
+                            <div className="text-center text-[10px] font-black text-slate-300 tracking-widest uppercase flex items-center justify-center gap-2">
+                                <InfinityIcon size={12}/> INFINITY SAVER SYSTEM
+                            </div>
                         </div>
                     </div>
-                );
-            }
-            return null;
-        }
+                </div>
+            );
+        };
+
+        const Metric = ({ label, val, sub, color }) => (
+            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm text-center">
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</div>
+                <div className={`text-2xl font-black ${color}`}>{val}</div>
+                <div className="text-[10px] text-slate-300 font-bold mt-1">{sub}</div>
+            </div>
+        );
+
+        const Row = ({ label, val }) => (
+            <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-400 font-bold">{label}</span>
+                <span className="font-black text-[#002d63]">{val}</span>
+            </div>
+        );
+
+        const ReportMetric = ({ label, val, highlight }) => (
+            <div className={`p-5 rounded-3xl border-2 text-center ${highlight ? 'border-[#002d63] bg-blue-50/20' : 'border-slate-50'}`}>
+                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</div>
+                <div className={`text-xl font-black ${highlight ? 'text-[#002d63]' : 'text-slate-700'}`}>{val}</div>
+            </div>
+        );
+
+        const ReportRow = ({ label, val }) => (
+            <div className="flex justify-between items-center text-sm font-bold text-slate-600">
+                <span>{label}</span>
+                <span>{val} บาท</span>
+            </div>
+        );
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
