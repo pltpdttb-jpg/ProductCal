@@ -189,7 +189,7 @@ const App = () => {
                 // โหมดระบุเบี้ยประกัน
                 annPrem = inputs.amount;
                 // คำนวณทุนประกันจากเบี้ยประกัน
-                sa = Math.floor((annPrem / ratePer1K) * 1000 / 1000) * 1000; // ปรับสูตร
+                sasa = Math.floor(annPrem / ratePer1K) * 1000; // ปรับสูตร
                 // คำนวณเบี้ยประกันใหม่จากทุนที่ปัดเศษแล้ว
                 annPrem = Math.round((sa / 1000) * ratePer1K);
             }
