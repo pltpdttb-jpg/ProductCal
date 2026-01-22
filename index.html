@@ -102,7 +102,7 @@
 };
 
         const getRateForAge = (age, gender) => {
-    const rates = PREMIUM_RATES[gender === 'm' ? 'male' : 'female'];
+    const rates = PREMIUM_RATES_FULL[gender === 'm' ? 'male' : 'female'];
     
     // Clamp อายุระหว่าง 20-60 ปี
     const clampedAge = Math.max(20, Math.min(age, 60));
