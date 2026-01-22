@@ -76,137 +76,230 @@
         const InfinityIcon = (p) => <IconBase {...p}><path d="M12 12c-2-2.67-4-4-6-4a4 4 0 1 0 0 8c2 0 4-1.33 6-4Zm0 0c2 2.67 4 4 6 4a4 4 0 1 0 0-8c-2 0-4 1.33-6 4Z"/></IconBase>;
 
         // --- PREMIUM RATES DATA ---
-        const PREMIUM_RATES = {
-            male: [
-                { age: 1, rate: 108000 }, { age: 15, rate: 126000 }, { age: 20, rate: 137800 }, 
-                { age: 30, rate: 154200 }, { age: 40, rate: 170600 }, { age: 50, rate: 187000 }, 
-                { age: 60, rate: 208200 }, { age: 65, rate: 218800 }
-            ],
-            female: [
-                { age: 1, rate: 104000 }, { age: 15, rate: 120500 }, { age: 20, rate: 131600 }, 
-                { age: 30, rate: 147800 }, { age: 40, rate: 164000 }, { age: 50, rate: 180200 }, 
-                { age: 60, rate: 199400 }, { age: 65, rate: 209000 }
-            ]
-        };
+        const PREMIUM_RATES_FULL = {
+            male: {
+        20: 689, 21: 695, 22: 700, 23: 705, 24: 711,
+        25: 717, 26: 723, 27: 729, 28: 735, 29: 742,
+        30: 749, 31: 756, 32: 763, 33: 770, 34: 778,
+        35: 786, 36: 794, 37: 802, 38: 810, 39: 819,
+        40: 828, 41: 837, 42: 846, 43: 856, 44: 866,
+        45: 876, 46: 886, 47: 896, 48: 907, 49: 918,
+        50: 929, 51: 941, 52: 952, 53: 964, 54: 976,
+        55: 989, 56: 1001, 57: 1007, 58: 1014, 59: 1021,
+        60: 1027
+    },
+    female: {
+        20: 658, 21: 663, 22: 668, 23: 673, 24: 678,
+        25: 684, 26: 689, 27: 695, 28: 701, 29: 707,
+        30: 714, 31: 720, 32: 727, 33: 734, 34: 741,
+        35: 749, 36: 756, 37: 764, 38: 772, 39: 781,
+        40: 789, 41: 798, 42: 807, 43: 817, 44: 826,
+        45: 833, 46: 846, 47: 857, 48: 867, 49: 878,
+        50: 890, 51: 901, 52: 913, 53: 925, 54: 938,
+        55: 951, 56: 964, 57: 977, 58: 991, 59: 1005,
+        60: 1019
+    }
+};
 
         const getRateForAge = (age, gender) => {
-            const dataset = PREMIUM_RATES[gender === 'm' ? 'male' : 'female'];
-            const sorted = [...dataset].sort((a, b) => a.age - b.age);
-            if (age <= sorted[0].age) return sorted[0].rate;
-            if (age >= sorted[sorted.length - 1].age) return sorted[sorted.length - 1].rate;
-            for (let i = 0; i < sorted.length - 1; i++) {
-                const s = sorted[i]; const e = sorted[i+1];
-                if (age >= s.age && age <= e.age) {
-                    return s.rate + (age - s.age) * (e.rate - s.rate) / (e.age - s.age);
-                }
+    const rates = PREMIUM_RATES[gender === 'm' ? 'male' : 'female'];
+    
+    // Clamp อายุระหว่าง 20-60 ปี
+    const clampedAge = Math.max(20, Math.min(age, 60));
+    
+    // คืนค่าเป็นอัตราต่อ 1,000 บาททุนประกัน
+    return rates[clampedAge] || rates[20];
+};
+
+    // --- IRR CALCULATION ---
+const calculateIRR = (flows) => {
+    let guess = 0.02;
+    for (let i = 0; i < 100; i++) {
+        let npv = 0; let dNpv = 0;
+        for (let t = 0; t < flows.length; t++) {
+            const d = Math.pow(1 + guess, t);
+            npv += flows[t] / d;
+            dNpv -= (t * flows[t]) / (d * (1 + guess));
+        }
+        if (Math.abs(dNpv) < 1e-12) break;
+        let next = guess - npv / dNpv;
+        if (Math.abs(next - guess) < 1e-7) return next;
+        guess = next;
+    }
+    return null;
+};
+
+const App = () => {
+    const [authorized, setAuthorized] = useState(false);
+    const [step, setStep] = useState('calc'); 
+    const [inputs, setInputs] = useState({ age: 35, gender: 'm', mode: 'sa', amount: 1000000 });
+    const [result, setResult] = useState(null);
+    const [loading, setLoading] = useState(false);
+
+    const handleCalculate = () => {
+    // ============================================
+    // 1. VALIDATION - ตรวจสอบข้อมูลเบื้องต้น (ใหม่)
+    // ============================================
+    
+    // ตรวจสอบอายุ (20-60 ปีตาม PDF)
+    if (!inputs.age || inputs.age < 20 || inputs.age > 60) {
+        alert('⚠️ อายุผู้เอาประกันต้องอยู่ระหว่าง 20-60 ปี');
+        return;
+    }
+    
+    // ตรวจสอบเงินทุน/เบี้ยประกัน
+    if (!inputs.amount || inputs.amount <= 0) {
+        alert('⚠️ กรุณากรอกจำนวนเงินที่ถูกต้อง');
+        return;
+    }
+    
+    // ตรวจสอบเพศ
+    if (!inputs.gender || (inputs.gender !== 'm' && inputs.gender !== 'f')) {
+        alert('⚠️ กรุณาเลือกเพศ');
+        return;
+    }
+    
+    // ============================================
+    // 2. เริ่มต้นการคำนวณ
+    // ============================================
+    setLoading(true);
+    
+    setTimeout(() => {
+        try {
+            // ดึงอัตราเบี้ยจากตาราง (ต่อ 1,000 บาททุนประกัน)
+            const ratePer1K = getRateForAge(inputs.age, inputs.gender);
+            
+            // ตรวจสอบว่าดึงค่าได้
+            if (!ratePer1K || ratePer1K <= 0) {
+                alert('ไม่พบอัตราเบี้ยสำหรับอายุนี้ กรุณาตรวจสอบข้อมูล');
+                setLoading(false);
+                return;
             }
-            return sorted[sorted.length - 1].rate;
-        };
-
-        // --- IRR CALCULATION ---
-        const calculateIRR = (flows) => {
-            let guess = 0.02;
-            for (let i = 0; i < 100; i++) {
-                let npv = 0; let dNpv = 0;
-                for (let t = 0; t < flows.length; t++) {
-                    const d = Math.pow(1 + guess, t);
-                    npv += flows[t] / d;
-                    dNpv -= (t * flows[t]) / (d * (1 + guess));
-                }
-                if (Math.abs(dNpv) < 1e-12) break;
-                let next = guess - npv / dNpv;
-                if (Math.abs(next - guess) < 1e-7) return next;
-                guess = next;
+            
+            let sa = 0; // Sum Assured (ทุนประกัน)
+            let annPrem = 0; // Annual Premium (เบี้ยประกันต่อปี)
+            
+            // คำนวณตามโหมด (ใหม่: คำนวณจากอัตราต่อ 1,000 บาท)
+            if (inputs.mode === 'sa') {
+                // โหมดระบุทุนประกัน
+                sa = inputs.amount;
+                annPrem = (sa / 1000) * ratePer1K; // เปลี่ยนจาก /1,000,000 เป็น /1,000
+                annPrem = Math.round(annPrem); // ปัดเศษ
+            } else {
+                // โหมดระบุเบี้ยประกัน
+                annPrem = inputs.amount;
+                // คำนวณทุนประกันจากเบี้ยประกัน
+                sa = Math.floor((annPrem / ratePer1K) * 1000 / 1000) * 1000; // ปรับสูตร
+                // คำนวณเบี้ยประกันใหม่จากทุนที่ปัดเศษแล้ว
+                annPrem = Math.round((sa / 1000) * ratePer1K);
             }
-            return null;
-        };
+            
+            // ตรวจสอบขั้นต่ำทุนประกันตาม PDF หน้า 14
+            if (sa < 50000) {
+                alert('⚠️ ทุนประกันภัยขั้นต่ำคือ 50,000 บาท (ตามเงื่อนไขกรมธรรม์)');
+                setLoading(false);
+                return;
+            }
+            
+            if (sa > 200000) {
+                alert('⚠️ ทุนประกันภัยสูงสุดคือ 200,000 บาท (ตามเงื่อนไขกรมธรรม์)');
+                setLoading(false);
+                return;
+            }
+            
+            // ตรวจสอบขั้นต่ำเบี้ยประกัน
+            if (annPrem < 1000) {
+                alert('⚠️ เบี้ยประกันขั้นต่ำคือ 1,000 บาทต่อปี');
+                setLoading(false);
+                return;
+            }
 
-        const App = () => {
-            const [authorized, setAuthorized] = useState(false);
-            const [step, setStep] = useState('calc'); 
-            const [inputs, setInputs] = useState({ age: 35, gender: 'm', mode: 'sa', amount: 1000000 });
-            const [result, setResult] = useState(null);
-            const [loading, setLoading] = useState(false);
+            // ============================================
+            // 3. การคำนวณผลประโยชน์ (เหมือนเดิม)
+            // ============================================
+            const duration = 88 - inputs.age;
+            const flows = [];
+            const irrStream = [-annPrem];
+            let cumPrem = 0;
+            let cumCash = 0;
 
-            const handleCalculate = () => {
-                setLoading(true);
-                setTimeout(() => {
-                    const ratePer1M = getRateForAge(inputs.age, inputs.gender);
-                    let sa = 0; let annPrem = 0;
-                    if (inputs.mode === 'sa') {
-                        sa = inputs.amount;
-                        annPrem = (sa / 1000000) * ratePer1M;
-                    } else {
-                        annPrem = inputs.amount;
-                        sa = Math.floor((annPrem / ratePer1M) * 1000000 / 1000) * 1000;
-                        annPrem = (sa / 1000000) * ratePer1M;
-                    }
+            for (let t = 1; t <= duration; t++) {
+                const year = t;
+                const curAge = inputs.age + t;
+                const p = t <= 8 ? annPrem : 0;
+                const c = curAge < 88 ? (sa * 0.088) : 0;
+                const m = curAge === 88 ? (sa * 8.88) : 0;
+                
+                if (t <= 8) cumPrem += annPrem;
+                cumCash += c;
 
-                    const duration = 88 - inputs.age;
-                    const flows = [];
-                    const irrStream = [-annPrem];
-                    let cumPrem = 0;
-                    let cumCash = 0;
+                // Step-up Death Benefit Logic (ตาม PDF หน้า 15)
+                let dbPercent = 0;
+                if(year === 1) dbPercent = 1.08;
+                else if(year === 2) dbPercent = 2.08;
+                else if(year === 3) dbPercent = 3.08;
+                else if(year === 4) dbPercent = 4.08;
+                else if(year === 5) dbPercent = 5.08;
+                else if(year === 6) dbPercent = 6.08;
+                else if(year === 7) dbPercent = 7.08;
+                else dbPercent = 8.08; // ปีที่ 8 เป็นต้นไป
+                
+                const deathBenefit = sa * dbPercent;
 
-                    for (let t = 1; t <= duration; t++) {
-                        const year = t;
-                        const curAge = inputs.age + t;
-                        const p = t <= 8 ? annPrem : 0;
-                        const c = curAge < 88 ? (sa * 0.088) : 0;
-                        const m = curAge === 88 ? (sa * 8.88) : 0;
-                        
-                        if (t <= 8) cumPrem += annPrem;
-                        cumCash += c;
+                flows.push({ 
+                    year, 
+                    age: curAge, 
+                    premium: p, 
+                    cashback: c, 
+                    maturity: m, 
+                    deathBenefit, 
+                    totalYearly: c + m 
+                });
+                
+                let net = (c + m);
+                if (t <= 8) net -= annPrem;
+                irrStream[t] = net;
+            }
 
-                        // Step-up Death Benefit Logic
-                        let dbPercent = 0;
-                        if(year === 1) dbPercent = 1.08;
-                        else if(year === 2) dbPercent = 2.08;
-                        else if(year === 3) dbPercent = 3.08;
-                        else if(year === 4) dbPercent = 4.08;
-                        else if(year === 5) dbPercent = 5.08;
-                        else if(year === 6) dbPercent = 6.08;
-                        else if(year === 7) dbPercent = 7.08;
-                        else dbPercent = 8.08;
-                        
-                        const deathBenefit = sa * dbPercent;
+            setResult({
+                sa, 
+                annPrem, 
+                cumPrem, 
+                cumCash,
+                maturity: sa * 8.88,
+                totalBenefit: cumCash + (sa * 8.88),
+                netProfit: (cumCash + (sa * 8.88)) - cumPrem,
+                irr: calculateIRR(irrStream) * 100,
+                flows,
+                isCampaign: annPrem >= 400000,
+                ratePer1K: ratePer1K // เพิ่มข้อมูลสำหรับแสดงผล
+            });
+            
+            setStep('result');
+            setLoading(false);
+            
+        } catch (error) {
+            console.error('Error in calculation:', error);
+            alert('เกิดข้อผิดพลาดในการคำนวณ');
+            setLoading(false);
+        }
+    }, 500);
+};
+    const resetAll = () => {
+        setStep('calc');
+        setResult(null);
+    };
 
-                        flows.push({ year, age: curAge, premium: p, cashback: c, maturity: m, deathBenefit, totalYearly: c + m });
-                        
-                        let net = (c + m);
-                        if (t <= 8) net -= annPrem;
-                        irrStream[t] = net;
-                    }
+    if (!authorized) return <Numpad onAuth={() => setAuthorized(true)} />;
 
-                    setResult({
-                        sa, annPrem, cumPrem, cumCash,
-                        maturity: sa * 8.88,
-                        totalBenefit: cumCash + (sa * 8.88),
-                        netProfit: (cumCash + (sa * 8.88)) - cumPrem,
-                        irr: calculateIRR(irrStream) * 100,
-                        flows,
-                        isCampaign: annPrem >= 400000
-                    });
-                    setStep('result');
-                    setLoading(false);
-                }, 500);
-            };
-
-            const resetAll = () => {
-                setStep('calc');
-                setResult(null);
-            };
-
-            if (!authorized) return <Numpad onAuth={() => setAuthorized(true)} />;
-
-            return (
-                <div className="min-h-screen bg-slate-50 text-slate-900">
-                    {step === 'calc' && <InputView inputs={inputs} setInputs={setInputs} onCalc={handleCalculate} loading={loading} />}
-                    {step === 'result' && <Dashboard result={result} inputs={inputs} onBack={resetAll} onReport={() => setStep('report')} />}
-                    {step === 'report' && <ReportView result={result} inputs={inputs} onBack={() => setStep('result')} />}
-                </div>
-            );
-        };
+    return (
+        <div className="min-h-screen bg-slate-50 text-slate-900">
+            {step === 'calc' && <InputView inputs={inputs} setInputs={setInputs} onCalc={handleCalculate} loading={loading} />}
+            {step === 'result' && <Dashboard result={result} inputs={inputs} onBack={resetAll} onReport={() => setStep('report')} />}
+            {step === 'report' && <ReportView result={result} inputs={inputs} onBack={() => setStep('result')} />}
+        </div>
+    );
+};
 
         // --- NUMPAD VIEW ---
         const Numpad = ({ onAuth }) => {
@@ -251,7 +344,7 @@
                 <div className="p-10 bg-[#002d63] text-white rounded-b-[3rem] shadow-xl">
                     <div className="flex items-center gap-3 mb-4">
                         <Calculator className="text-orange-400" />
-                        <h2 className="text-xl font-black tracking-tight">RZh5 | Infinity Saver Calculator</h2>
+                        <h2 className="text-xl font-black tracking-tight">RH5 | Infinity Saver Calculator</h2>
                     </div>
                     <p className="text-blue-100/60 text-sm leading-relaxed">เครื่องมือคำนวณผลประโยชน์ แบบประกันอินฟินิตี้ เซฟเวอร์</p>
                 </div>
